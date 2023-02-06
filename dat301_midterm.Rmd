@@ -1,0 +1,303 @@
+---
+title: "NBA Stats Visualization Project"
+author: "Drew Mudry"
+output: ioslides_presentation
+---
+```{r, include = FALSE}
+library(plotly)
+library(magrittr) ## package for pipe operators
+library(leaflet) ## package for map widgets
+library(webshot)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(caret)
+
+#create data set and add year to it 
+stats = read.csv("all_seasons.csv", sep=",", header=TRUE)
+stats$year <- as.numeric(substr(stats$season, 1, 4))
+```
+
+## Data Selection
+
+- For this project, I chose to analyze NBA player data. The data set contains over two decades of data on each player who has been part of an NBA teams' roster. 
+
+## Data Description
+The data set includes various stats for NBA players from 1996 to 2020.\
+The stats that we will mostly use are:
+
+- Counting stats such as points, rebounds, assists, and games played
+- Info about the player such as name, weight, height, age and nationality 
+- Info about the player's team such as NBA team, college and draft position
+- Team percentage stats such as usage pct and assist pct
+
+## Plot 1: 
+Best individual seasons
+
+
+## Best Individual Seasons
+For this plot, my goal is to show only the players who were better than average in each statistical category. 
+The data was achieved with the following code:
+```{r, include = TRUE}
+#only show players who are above average in PTS, REB, and AST 
+#                                         with Net_Rating > 0
+plotdata <-stats %>% filter(
+                      stats$pts > mean(stats$pts, na.rm = TRUE),
+                      stats$reb > mean(stats$reb, na.rm = TRUE),
+                      stats$ast > mean(stats$ast, na.rm = TRUE), 
+                      stats$gp > 41, #played over half season
+                      stats$net_rating > 2)#positive impact
+
+```
+
+```{r, include=FALSE}
+plot1 <- plot_ly(plotdata, mode = 'markers', x = ~pts, y = ~reb, z=~ast,  
+                marker=list(
+                size=5,
+                color=plotdata$year,
+                colorbar=list(
+                title='Year'),
+                colorscale='Viridis',
+                reversescale =T), 
+                text = ~paste(plotdata$player_name, plotdata$season))
+plot1 <- plot1 %>% add_markers()
+plot1 <- plot1%>% layout(title = "Best NBA seasons")
+plot1 <- plot1 %>% layout(scene = list(xaxis = list(title = 'PPG'),
+                     yaxis = list(title = 'RPG'),
+                     zaxis = list(title = 'APG')))
+```
+
+
+## Best Individual Seasons 
+This scatter plot consists of all the players who were above average in PTS, REB and AST who also had a positive net rating when on the court (min 41 games played).
+
+```{r, include = TRUE, echo=FALSE, warning=FALSE}
+plot1
+```
+
+## Best Individual Seasons 
+Code for the previous plot:\
+```{r, include=TRUE}
+plot1 <- plot_ly(plotdata,mode = 'markers', x = ~pts, y = ~reb, z=~ast,  
+                marker=list(
+                size=5,
+                color=plotdata$year,
+                colorbar=list(
+                title='Year'),
+                colorscale='Viridis',
+                reversescale =T), 
+                text = ~paste(plotdata$player_name, plotdata$season))
+plot1 <- plot1 %>% add_markers()
+plot1 <- plot1%>% layout(title = "Best NBA seasons")
+plot1 <- plot1 %>% layout(scene = list(xaxis = list(title = 'PPG'),
+                     yaxis = list(title = 'RPG'),
+                     zaxis = list(title = 'APG')))
+```
+
+## Plot 2: 
+NBA player heights
+
+## NBA Player Heights through the years
+This plot will show the distribution of heights throughout each NBA season. 
+The data was achieved with the following code:
+```{r, include = FALSE, warnings = FALSE}
+
+plot2 <- plot_ly(stats, x=~year, y = ~player_height,  
+                 type = "box", 
+                 marker = list(color = 'rgb(255,1,1)'),
+                 line = list(color = 'rgb(0,0,0)'),
+                 text = ~paste(stats$player_name, stats$season))
+plot2 <- plot2%>%layout(title = "NBA Player Height Each Year", 
+                        yaxis = list(title ="Player Height (cm)"), 
+                        xaxis= list(title = "Year"))
+
+```
+
+```{r, include = TRUE, warning = FALSE, echo=FALSE}
+plot2
+
+```
+
+## NBA Player Heights through the years
+- Below is the code used for the previous plot:
+```{r, include = TRUE, warning=FALSE}
+plot2 <- plot_ly(stats, x=~year, y = ~player_height,  
+                 type = "box", 
+                 marker = list(color = 'rgb(255,1,1)'),
+                 line = list(color = 'rgb(0,0,0)'),
+                 text = ~paste(stats$player_name, stats$season))
+plot2 <- plot2%>%layout(title = "NBA Player Height Each Year", 
+                        yaxis = list(title ="Player Height (cm)"), 
+                        xaxis= list(title = "Year"))
+
+```
+
+
+
+## Plot 3
+What colleges produced the most NBA players?
+
+## College contributions to the NBA
+This plot will show what colleges current NBA players attended in their years before entering the NBA. \
+To do this, I used the code below. 
+```{r, include = TRUE}
+#get players from 2019
+plot3data <- stats %>% filter(stats$year == 2019)
+plot3data = plot3data%>%group_by(college)%>%mutate(count=n())
+uniqueColleges = plot3data %>% distinct(college, .keep_all = TRUE)
+#only count colleges with at least 5 players
+uniqueColleges = uniqueColleges[uniqueColleges$count >= 5,]
+
+```
+```{r, include = FALSE}
+plot3 <-ggplot(uniqueColleges, aes(x = "", y = uniqueColleges$count, fill = uniqueColleges$college))+
+            geom_bar(width = 0.5, stat = "identity", color = "white") +
+            labs(x = "", y = "", title = "2019 NBA Player's Colleges \n",
+            fill = "Colleges")+
+            geom_text(aes(label = uniqueColleges$count),
+            position = position_stack(vjust = 0.5)) +
+            coord_polar(theta = "y")+
+            theme(plot.title = element_text(hjust = 0.5), 
+            legend.title = element_text(hjust = 0.5, face="bold", size = 1))
+
+```
+
+## College contributions to the NBA
+
+```{r, include = TRUE, echo = FALSE}
+plot3
+```
+
+## Plot Code
+Below is the code that I used to achieve the previous plot: 
+
+```{r, include=TRUE, warning=FALSE, error = FALSE}
+
+plot3 <-ggplot(uniqueColleges, aes(x = "", y = uniqueColleges$count,
+            fill = uniqueColleges$college))+
+            geom_bar(width = 1, stat = "identity", color = "white") +
+            labs(x = "", y = "", title = "2019 NBA Player's Colleges \n",
+            fill = "Colleges") +
+            geom_text(aes(label = uniqueColleges$count),
+            position = position_stack(vjust = 0.5)) +
+            coord_polar(theta = "y")
+            
+
+```
+
+
+
+
+## Plot 4
+Highest PPG for each year
+
+
+## Highest PPG for each year
+
+```{r, include = TRUE, warning = FALSE}
+  #group by each year and get top 1 in PTS
+plot4data<-stats %>% group_by(year) %>% top_n(1, pts)
+```
+
+```{r, include = FALSE, echo=FALSE, warning=FALSE}
+
+plot4<-ggplot(data=plot4data, aes(x=plot4data$year, y=plot4data$pts, width = 0.65))+
+              geom_bar(stat="identity", fill="orange")+
+              geom_text(aes(label=plot4data$pts), vjust=-0.3, size=3.5)+
+              #geom_point(aes(label=plot4data$player_name), vjust=1.3, size=1.5)+
+              ggtitle("Highest PPG for Each Season")+
+              ylab("Points Per Game")+
+              xlab("Year")+
+              theme_minimal()
+```
+
+## Highest PPG for each year
+```{r, include = TRUE, echo = FALSE}
+
+plot4
+```
+
+
+## Highest PPG for each year
+
+```{r, include = TRUE, warning = FALSE}
+
+plot4data<-stats %>% group_by(year) %>% top_n(1, pts)
+
+plot4<-ggplot(data=plot4data, aes(x=plot4data$year, 
+                                  y=plot4data$pts, width = 0.65))+
+              geom_bar(stat="identity", fill="orange")+
+              geom_text(aes(label=plot4data$pts), vjust=-0.3, size=3.5)+
+              ggtitle("Highest PPG for Each Season")+
+              ylab("Points Per Game")+
+              xlab("Year")+
+              theme_minimal()
+```
+
+
+
+## Simple Linear Regression
+- My goal for this linear regression model is to see if being taller will contribute to your NBA scoring ability  
+- To do this I provided our model with data of heights and pts for all NBA players in our data set.
+```{r, include=TRUE}
+height<- stats$player_height
+pts <- stats$pts
+traindata <- data.frame(height, pts)
+
+```
+
+
+## Linear Regression Model
+- Next I will run our regression model and plot it with a trendline:  
+```{r, include = TRUE, eval=FALSE}
+model <- lm(pts ~ height, data = traindata)
+traindata %>% 
+    plot_ly(x = ~height) %>% 
+  add_markers(y = ~pts) %>% 
+  add_lines(x = ~height, y = fitted(model))%>%
+  layout(title = 'Height Vs Pts ', xaxis = list(title = 'Player Height(cm)'), 
+         yaxis = list(title = 'PTS'), showlegend = F)
+  
+```
+
+## Linear Regression plot
+```{r, include = TRUE,echo=FALSE}
+model <- lm(pts ~ height, data = traindata)
+traindata %>% 
+    plot_ly(x = ~height) %>% 
+  add_markers(y = ~pts) %>% 
+  add_lines(x = ~height, y = fitted(model))%>%
+  layout(title = 'Height Vs Pts ', xaxis = list(title = 'Player Height(cm)'), 
+         yaxis = list(title = 'PTS'), showlegend = F)
+  
+
+```
+## Evaluation
+```{r, include=FALSE}
+MultipleR<-summary(model)$r.squared
+AdjustedR<-summary(model)$adj.r.squared
+```
+```{r, include = TRUE}
+MultipleR
+AdjustedR
+```
+
+
+## Evaluation
+  Clearly, there is no connection between height and NBA scoring ability in the NBA based on our NBA player data. 
+
+## The end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
